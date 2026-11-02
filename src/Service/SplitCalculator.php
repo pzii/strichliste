@@ -5,7 +5,7 @@ namespace App\Service;
 class SplitCalculator
 {
     /**
-     * Split $total cents into $parts shares whose sum equals $total exactly.
+     * Split a minor-unit total into $parts shares whose sum equals the total exactly.
      *
      * The remainder goes to the first rows so the total stays exact:
      * 1001/3 → [334, 334, 333].

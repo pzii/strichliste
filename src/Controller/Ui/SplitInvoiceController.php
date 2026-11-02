@@ -75,7 +75,7 @@ class SplitInvoiceController extends AbstractController
 
         // not getInt(): the placeholder option submits "", which must stay a 422 validation error, not a 400
         $recipientId = (int) $request->request->getString('recipient');
-        $amountCents = $this->moneyParser->parseToCents($request->request->getString('amount'));
+        $amountMinorUnits = $this->moneyParser->parseToMinorUnits($request->request->getString('amount'));
         $comment = trim($request->request->getString('comment')) ?: null;
         $participantIds = array_map(intval(...), $request->request->all('participants'));
 
@@ -96,7 +96,7 @@ class SplitInvoiceController extends AbstractController
             $errors[] = $this->translator->trans('split_invoice.errors.recipient_missing');
         }
 
-        if (null === $amountCents || $amountCents <= 0) {
+        if (null === $amountMinorUnits || $amountMinorUnits <= 0) {
             $errors[] = $this->translator->trans('split_invoice.errors.invalid_amount');
         }
 
@@ -111,7 +111,7 @@ class SplitInvoiceController extends AbstractController
         $debtors = [];
         $debtorAmounts = [];
         if ($recipient) {
-            $shares = $this->splitCalculator->distribute($amountCents ?? 0, max(1, count($cleanParticipants)));
+            $shares = $this->splitCalculator->distribute($amountMinorUnits ?? 0, max(1, count($cleanParticipants)));
             $i = 0;
             foreach ($cleanParticipants as $participant) {
                 if ($participant->getId() !== $recipient->getId()) {
@@ -130,7 +130,7 @@ class SplitInvoiceController extends AbstractController
                 $this->transactionService->doSplit($debtors, $recipient, $debtorAmounts, $comment);
                 $this->addFlash('success', $this->translator->trans('split_invoice.flash.success', [
                     '%count%' => count($cleanParticipants),
-                    '%total%' => $this->appExtension->currencyFormat($amountCents, null, false),
+                    '%total%' => $this->appExtension->currencyFormat($amountMinorUnits, null, false),
                 ]));
                 $this->addFlash('transaction_success', '1');
 

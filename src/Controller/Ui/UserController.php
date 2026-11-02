@@ -120,11 +120,11 @@ class UserController extends AbstractController
         };
 
         $depositSteps = array_map(
-            fn (int $cents) => ['amount' => $cents, 'disabled' => $stepDisabled($cents)],
+            fn (int $amountMinorUnits) => ['amount' => $amountMinorUnits, 'disabled' => $stepDisabled($amountMinorUnits)],
             (array) $this->settings->getOrDefault('payment.deposit.steps', [])
         );
         $dispenseSteps = array_map(
-            fn (int $cents) => ['amount' => -$cents, 'disabled' => $stepDisabled(-$cents)],
+            fn (int $amountMinorUnits) => ['amount' => -$amountMinorUnits, 'disabled' => $stepDisabled(-$amountMinorUnits)],
             (array) $this->settings->getOrDefault('payment.dispense.steps', [])
         );
 

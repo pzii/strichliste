@@ -1,2 +1,4 @@
 # constraint messages resolve in the validators domain, not messages
 user.create.errors.invalid_name: Der Name enthält ungültige Zeichen.
+money.integral_amount: Bitte einen ganzzahligen Betrag eingeben.
+money.amount_out_of_range: Der Betrag liegt außerhalb des unterstützten Ganzzahlbereichs.

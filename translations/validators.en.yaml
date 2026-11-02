@@ -1,2 +1,4 @@
 # constraint messages resolve in the validators domain, not messages
 user.create.errors.invalid_name: Name contains invalid characters.
+money.integral_amount: Enter a whole-number amount.
+money.amount_out_of_range: Amount is outside the supported integer range.

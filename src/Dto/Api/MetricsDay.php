@@ -21,7 +21,7 @@ final class MetricsDay
         public string $date,
         public int $transactions,
         public int $distinctUsers,
-        #[OA\Property(description: 'Net amount of the day in cents.')]
+        #[OA\Property(description: 'Net amount of the day in the configured currency\'s smallest unit.')]
         public int $balance,
         // mixed (int-0 or {amount,transactions}); nullable:false stops the
         // `mixed` PHP type from leaking a spurious `nullable: true`.

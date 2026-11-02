@@ -32,6 +32,7 @@ export default class extends Controller {
         variant: String,
         labels: Object, // translated series names, from the template
         currency: { type: String, default: '€' },
+        fractionDigits: { type: Number, default: 2 },
     };
 
     connect() {
@@ -63,6 +64,7 @@ export default class extends Controller {
             window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
         const variant = this.hasVariantValue ? this.variantValue : 'balance';
+        const unitFactor = 10 ** this.fractionDigitsValue;
         const L = {
             charged: 'Charged',
             spent: 'Spent',
@@ -85,7 +87,7 @@ export default class extends Controller {
                 : [
                       {
                           label: L.charged,
-                          data: days.map((d) => d.charged / 100),
+                          data: days.map((d) => d.charged / unitFactor),
                           backgroundColor: greenText,
                           borderColor: greenText,
                           order: 2,
@@ -94,7 +96,7 @@ export default class extends Controller {
                       },
                       {
                           label: L.spent,
-                          data: days.map((d) => d.spent / 100),
+                          data: days.map((d) => d.spent / unitFactor),
                           backgroundColor: redText,
                           borderColor: redText,
                           order: 2,
@@ -103,7 +105,7 @@ export default class extends Controller {
                       },
                       {
                           label: L.net,
-                          data: days.map((d) => d.balance / 100),
+                          data: days.map((d) => d.balance / unitFactor),
                           type: 'line',
                           // theme text color, so the net line survives dark mode
                           borderColor: text,
@@ -138,7 +140,7 @@ export default class extends Controller {
                                   }
                                 : {
                                       label: (ctx) =>
-                                          `${ctx.dataset.label}: ${this.currencyValue}${ctx.parsed.y.toFixed(2)}`,
+                                          `${ctx.dataset.label}: ${this.currencyValue}${ctx.parsed.y.toFixed(this.fractionDigitsValue)}`,
                                   },
                     },
                 },
@@ -149,7 +151,7 @@ export default class extends Controller {
                     },
                     y: {
                         grid: { color: grid },
-                        ticks: { color: text, count: 5 },
+                        ticks: { color: text, count: 5, precision: this.fractionDigitsValue },
                     },
                 },
             },

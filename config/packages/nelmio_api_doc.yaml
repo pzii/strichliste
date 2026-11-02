@@ -17,7 +17,9 @@ nelmio_api_doc:
 
                 This contract is **frozen**: external clients (Android apps,
                 kiosk hardware) depend on the exact JSON shapes. All monetary
-                amounts are **integer cents**. Timestamps use the
+                monetary amounts are **integers in the configured currency's
+                smallest unit** (`i18n.currency.fractionDigits`; default `2`,
+                so amounts are integer cents). Timestamps use the
                 `YYYY-MM-DD HH:MM:SS` format. Request bodies may be sent as
                 JSON or form-encoded.
 

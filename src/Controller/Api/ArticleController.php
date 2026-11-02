@@ -114,7 +114,7 @@ class ArticleController extends AbstractController
     #[Serialize]
     public function createArticle(#[MapRequestPayload] WriteArticleDto $dto, ArticleService $articleService, EntityManagerInterface $entityManager): ArticleDto
     {
-        $article = $articleService->create($dto->name, $dto->amount);
+        $article = $articleService->create($dto->name, (int) $dto->amount);
 
         $entityManager->persist($article);
         $entityManager->flush();
@@ -245,7 +245,7 @@ class ArticleController extends AbstractController
             throw new ArticleInactiveException($article);
         }
 
-        $article = $articleService->update($article, $dto->name, $dto->amount);
+        $article = $articleService->update($article, $dto->name, (int) $dto->amount);
 
         return $this->articleSerializer->serialize($article);
     }

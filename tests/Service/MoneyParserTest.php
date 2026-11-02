@@ -15,7 +15,19 @@ class MoneyParserTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->parser = new MoneyParser();
+        $this->parser = $this->makeParser();
+    }
+
+    private function makeParser(int $fractionDigits = 2): MoneyParser
+    {
+        return new MoneyParser(new \App\Service\SettingsService([
+            'i18n' => [
+                'currency' => [
+                    'fractionDigits' => $fractionDigits,
+                    'symbol' => '€',
+                ],
+            ],
+        ]));
     }
 
     /**
@@ -69,17 +81,40 @@ class MoneyParserTest extends TestCase
     }
 
     #[DataProvider('parseProvider')]
-    public function testParseToCents(mixed $input, ?int $expected): void
+    public function testParseToMinorUnits(mixed $input, ?int $expected): void
     {
-        self::assertSame($expected, $this->parser->parseToCents($input));
+        self::assertSame($expected, $this->parser->parseToMinorUnits($input));
     }
 
-    public function testMajorToCentsRoundsAwayFromFloatArtifact(): void
+    public function testZeroFractionDigitsRequireWholeAmounts(): void
+    {
+        $parser = $this->makeParser(0);
+
+        self::assertSame(10, $parser->parseToMinorUnits('10'));
+        self::assertSame(-10, $parser->parseToMinorUnits('-10'));
+        self::assertSame(10, $parser->parseToMinorUnits('€ 10'));
+        self::assertNull($parser->parseToMinorUnits('10.5'));
+        self::assertNull($parser->parseToMinorUnits('10,5'));
+        self::assertSame(10, $parser->parseToMinorUnits('10.0'));
+        self::assertNull($parser->parseToMinorUnits('1e-1'));
+        self::assertSame(10.0, $parser->minorToMajorUnits(10));
+    }
+
+    public function testSixFractionDigitsAndRoundsExcessPrecision(): void
+    {
+        $parser = $this->makeParser(6);
+
+        self::assertSame(1234567, $parser->parseToMinorUnits('1.234567'));
+        self::assertSame(1234568, $parser->parseToMinorUnits('1.2345678'));
+        self::assertSame(1, $parser->parseToMinorUnits('0.000001'));
+    }
+
+    public function testDefaultPrecisionPreservesFloatRoundingBehavior(): void
     {
         // 1.50 * 100 is 149.99999... in IEEE float; round() rescues it
-        self::assertSame(150, MoneyParser::majorToCents(1.50));
-        self::assertSame(599, MoneyParser::majorToCents(5.99));
-        self::assertSame(0, MoneyParser::majorToCents(0.0));
-        self::assertSame(-250, MoneyParser::majorToCents(-2.5));
+        self::assertSame(150, $this->parser->parseToMinorUnits(1.50));
+        self::assertSame(599, $this->parser->parseToMinorUnits(5.99));
+        self::assertSame(0, $this->parser->parseToMinorUnits(0.0));
+        self::assertSame(-250, $this->parser->parseToMinorUnits(-2.5));
     }
 }

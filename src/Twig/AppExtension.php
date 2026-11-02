@@ -2,6 +2,7 @@
 
 namespace App\Twig;
 
+use App\Service\MoneyParser;
 use App\Service\SettingsService;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFilter;
@@ -12,8 +13,10 @@ class AppExtension extends AbstractExtension
     /** @var array<string, \NumberFormatter> */
     private array $formatters = [];
 
-    public function __construct(private readonly SettingsService $settings)
-    {
+    public function __construct(
+        private readonly SettingsService $settings,
+        private readonly MoneyParser $moneyParser,
+    ) {
     }
 
     #[\Override]
@@ -21,6 +24,7 @@ class AppExtension extends AbstractExtension
     {
         return [
             new TwigFilter('currency_format', $this->currencyFormat(...)),
+            new TwigFilter('currency_input', $this->currencyInput(...)),
             new TwigFilter('balance_class', $this->balanceClass(...)),
         ];
     }
@@ -50,41 +54,49 @@ class AppExtension extends AbstractExtension
         ];
     }
 
-    // signed (default) renders +€25.77 / -€8.52 / €0.00 like the SPA; unsigned is for plain prices
-    public function currencyFormat(?int $cents, ?string $currencySymbol = null, bool $signed = true): string
+    // Signed (default) prefixes positive amounts; unsigned is for plain prices.
+    public function currencyFormat(?int $amount, ?string $currencySymbol = null, bool $signed = true): string
     {
-        if (null === $cents) {
+        if (null === $amount) {
             return '';
         }
         $symbol = $currencySymbol ?: $this->settings->getOrDefault('i18n.currency.symbol', '€');
         $locale = (string) $this->settings->getOrDefault('i18n.language', 'en');
+        $fractionDigits = $this->moneyParser->getFractionDigits();
 
         $sign = '';
         if ($signed) {
-            $sign = $cents > 0 ? '+' : ($cents < 0 ? '-' : '');
+            $sign = $amount > 0 ? '+' : ($amount < 0 ? '-' : '');
         }
-        $abs = abs($cents) / 100;
+        $abs = $this->moneyParser->minorToMajorUnits(abs($amount));
 
         if (!isset($this->formatters[$locale])) {
             $formatter = new \NumberFormatter($locale, \NumberFormatter::DECIMAL);
-            $formatter->setAttribute(\NumberFormatter::MIN_FRACTION_DIGITS, 2);
-            $formatter->setAttribute(\NumberFormatter::MAX_FRACTION_DIGITS, 2);
+            $formatter->setAttribute(\NumberFormatter::MIN_FRACTION_DIGITS, $fractionDigits);
+            $formatter->setAttribute(\NumberFormatter::MAX_FRACTION_DIGITS, $fractionDigits);
             $this->formatters[$locale] = $formatter;
         }
         $number = $this->formatters[$locale]->format($abs);
         if (false === $number) {
-            $number = number_format($abs, 2, '.', ',');
+            $number = number_format($abs, $fractionDigits, '.', ',');
         }
 
         return $sign.$symbol.$number;
     }
 
-    public function balanceClass(?int $cents): string
+    public function currencyInput(int $minorUnits): string
     {
-        if (null === $cents || 0 === $cents) {
+        $fractionDigits = $this->moneyParser->getFractionDigits();
+
+        return number_format($this->moneyParser->minorToMajorUnits($minorUnits), $fractionDigits, '.', '');
+    }
+
+    public function balanceClass(?int $amount): string
+    {
+        if (null === $amount || 0 === $amount) {
             return 'is-zero';
         }
 
-        return $cents > 0 ? 'is-positive' : 'is-negative';
+        return $amount > 0 ? 'is-positive' : 'is-negative';
     }
 }

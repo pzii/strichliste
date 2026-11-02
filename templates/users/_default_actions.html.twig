@@ -13,7 +13,7 @@
                             <input
                                 type="hidden"
                                 name="{{ form.amount.vars.full_name }}"
-                                value="{{ (step.amount / 100)|number_format(2, '.', '') }}"
+                                value="{{ step.amount|currency_input }}"
                             />
                             <input
                                 type="hidden"
@@ -92,7 +92,7 @@
                             <input
                                 type="hidden"
                                 name="{{ form.amount.vars.full_name }}"
-                                value="{{ (step.amount|abs / 100)|number_format(2, '.', '') }}"
+                                value="{{ step.amount|abs|currency_input }}"
                             />
                             <input
                                 type="hidden"

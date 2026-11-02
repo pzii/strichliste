@@ -2,10 +2,13 @@
 
 namespace App\Tests\Twig;
 
+use App\Service\MoneyParser;
 use App\Service\SettingsService;
 use App\Twig\AppExtension;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Twig\Environment;
+use Twig\Loader\ArrayLoader;
 
 /**
  * AppExtension's filters are pure given a SettingsService; the service just wraps
@@ -13,17 +16,20 @@ use PHPUnit\Framework\TestCase;
  */
 class AppExtensionTest extends TestCase
 {
-    private function makeExtension(): AppExtension
+    private function makeExtension(int $fractionDigits = 2): AppExtension
     {
-        // mirror config/strichliste.yaml: en locale, € symbol
+        // mirror config/strichliste.yaml: en locale and configured currency precision
         $settings = new SettingsService([
             'i18n' => [
                 'language' => 'en',
-                'currency' => ['symbol' => '€'],
+                'currency' => [
+                    'symbol' => '€',
+                    'fractionDigits' => $fractionDigits,
+                ],
             ],
         ]);
 
-        return new AppExtension($settings);
+        return new AppExtension($settings, new MoneyParser($settings));
     }
 
     public function testCurrencyFormatPositiveGetsLeadingPlus(): void
@@ -39,6 +45,26 @@ class AppExtensionTest extends TestCase
     public function testCurrencyFormatZeroHasNoSign(): void
     {
         self::assertSame('€0.00', $this->makeExtension()->currencyFormat(0));
+    }
+
+    public function testCurrencyFormatOmitsFractionDigitsWhenConfigured(): void
+    {
+        self::assertSame('+€10', $this->makeExtension(0)->currencyFormat(10));
+    }
+
+    public function testCurrencyFormatHonoursSixFractionDigits(): void
+    {
+        self::assertSame('+€1.234567', $this->makeExtension(6)->currencyFormat(1234567));
+    }
+
+    public function testCurrencyInputUsesConfiguredPrecision(): void
+    {
+        foreach ([0 => '50', 2 => '0.50', 6 => '0.000050'] as $fractionDigits => $expected) {
+            $twig = new Environment(new ArrayLoader(['amount' => '{{ amount|currency_input }}']));
+            $twig->addExtension($this->makeExtension($fractionDigits));
+
+            self::assertSame($expected, $twig->render('amount', ['amount' => 50]));
+        }
     }
 
     public function testCurrencyFormatUnsignedDropsSign(): void

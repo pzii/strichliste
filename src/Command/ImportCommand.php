@@ -6,7 +6,9 @@ use App\Entity\Article;
 use App\Entity\Transaction;
 use App\Entity\User;
 use App\Service\MoneyParser;
+use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
+use Doctrine\DBAL\Result;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -16,8 +18,10 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 class ImportCommand extends Command
 {
-    public function __construct(private readonly EntityManagerInterface $entityManager)
-    {
+    public function __construct(
+        private readonly EntityManagerInterface $entityManager,
+        private readonly MoneyParser $moneyParser,
+    ) {
         parent::__construct();
         ini_set('memory_limit', '1024M');
     }
@@ -63,6 +67,15 @@ class ImportCommand extends Command
             return Command::FAILURE;
         }
 
+        $sourceTransactions = $this->querySourceTransactions($connection);
+        foreach ($sourceTransactions->iterateAssociative() as $transaction) {
+            if (null === $this->moneyParser->parseToMinorUnits($transaction['value'])) {
+                $output->writeln('<error>Cannot import a fractional or invalid amount with the configured currency precision.</error>');
+
+                return Command::FAILURE;
+            }
+        }
+
         $entityManager->createQueryBuilder()->delete(Transaction::class)->getQuery()->execute();
         $entityManager->createQueryBuilder()->delete(User::class)->getQuery()->execute();
         $entityManager->createQueryBuilder()->delete(Article::class)->getQuery()->execute();
@@ -100,11 +113,7 @@ class ImportCommand extends Command
             $userMapping[$id] = $newUser;
         }
 
-        try {
-            $result = $connection->executeQuery('select t.userId, value, t.comment, t.createDate from transactions as t join users on users.id = t.userId');
-        } catch (\Exception) {
-            $result = $connection->executeQuery("select t.userId, value, '' as comment, t.createDate from transactions as t join users on users.id = t.userId");
-        }
+        $result = $this->querySourceTransactions($connection);
 
         $count = 0;
         foreach ($result->iterateAssociative() as $transaction) {
@@ -113,8 +122,8 @@ class ImportCommand extends Command
 
             $newTransaction = new Transaction();
             $newTransaction->setUser($user);
-            // round() dodges 1.50 * 100 = 149 float-truncation artifacts (see MoneyParser)
-            $newTransaction->setAmount(MoneyParser::majorToCents((float) $transaction['value']));
+            $newTransaction->setAmount($this->moneyParser->parseToMinorUnits($transaction['value'])
+                ?? throw new \LogicException('A prevalidated legacy amount became invalid.'));
             $newTransaction->setCreated(new \DateTime($transaction['createDate']));
 
             if ($transaction['comment']) {
@@ -140,12 +149,18 @@ class ImportCommand extends Command
                 ->getQuery()
                 ->getSingleResult();
 
-            $amount = $result['amount'];
+            $amount = (int) $result['amount'];
             $latestTransaction = $result['latestTransaction'];
             if ($amount) {
                 $user->setBalance($amount);
 
-                $output->writeln(sprintf("Update balance of user '%s' to %.2f", $user->getName(), $amount / 100));
+                $displayAmount = number_format(
+                    $this->moneyParser->minorToMajorUnits($amount),
+                    $this->moneyParser->getFractionDigits(),
+                    '.',
+                    ',',
+                );
+                $output->writeln(sprintf("Update balance of user '%s' to %s", $user->getName(), $displayAmount));
 
                 if ($latestTransaction) {
                     $user->setUpdated(new \DateTime($latestTransaction));
@@ -159,5 +174,14 @@ class ImportCommand extends Command
         $output->writeln('Import done!');
 
         return Command::SUCCESS;
+    }
+
+    private function querySourceTransactions(Connection $connection): Result
+    {
+        try {
+            return $connection->executeQuery('select t.userId, value, t.comment, t.createDate from transactions as t join users on users.id = t.userId');
+        } catch (\Exception) {
+            return $connection->executeQuery("select t.userId, value, '' as comment, t.createDate from transactions as t join users on users.id = t.userId");
+        }
     }
 }

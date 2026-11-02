@@ -79,7 +79,7 @@ class ArticleService
 
     /**
      * Build a new (unpersisted) article. Input is validated upstream by
-     * {@see \App\Dto\Api\WriteArticleDto}; `$amountCents` is raw integer cents.
+     * {@see \App\Dto\Api\WriteArticleDto}; `$amountCents` is the integer minor-unit price.
      */
     public function create(string $name, int $amountCents): Article
     {

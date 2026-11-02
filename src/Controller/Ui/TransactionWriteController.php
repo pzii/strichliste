@@ -27,6 +27,7 @@ class TransactionWriteController extends AbstractController
     public function __construct(
         private readonly TransactionService $transactionService,
         private readonly TransactionRepository $transactionRepository,
+        private readonly MoneyParser $moneyParser,
         private readonly TranslatorInterface $translator,
         private readonly LoggerInterface $logger,
     ) {
@@ -54,8 +55,8 @@ class TransactionWriteController extends AbstractController
         $data = $form->getData();
         $direction = $data['direction'] ?? 'deposit';
         // ignore the submitted sign and apply direction explicitly so a crafted negative can't flip a deposit
-        $cents = MoneyParser::majorToCents(abs((float) $data['amount']));
-        $amount = 'dispense' === $direction ? -$cents : $cents;
+        $minorUnits = $this->moneyParser->majorToMinorUnits(abs((float) $data['amount']));
+        $amount = 'dispense' === $direction ? -$minorUnits : $minorUnits;
         if (0 === $amount) {
             $this->addFlash('error', $this->translator->trans('transactions.errors.invalid'));
 
@@ -112,8 +113,7 @@ class TransactionWriteController extends AbstractController
         }
 
         // amount is major units; transfer always debits the current user.
-        $cents = MoneyParser::majorToCents(abs((float) $data['amount']));
-        $amount = -$cents;
+        $amount = -$this->moneyParser->majorToMinorUnits(abs((float) $data['amount']));
         $comment = $data['comment'] ?: null;
 
         try {

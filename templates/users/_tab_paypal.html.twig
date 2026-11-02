@@ -19,7 +19,7 @@
         <input type="hidden" name="_token" value="{{ csrf_token('paypal_start' ~ user.id) }}" />
 
         <label for="paypal-amount">{{ 'paypal.tab.amount_label'|trans }} ({{ currencySymbol }})</label>
-        <input type="text" inputmode="decimal" id="paypal-amount" name="amount" required />
+        <input type="text" inputmode="{{ 0 == setting('i18n.currency.fractionDigits', 2) ? 'numeric' : 'decimal' }}" id="paypal-amount" name="amount" required />
 
         {% if fee > 0 %}
             <p class="form-help">{{ 'paypal.tab.fee_preview'|trans({'%fee%': fee}) }}</p>

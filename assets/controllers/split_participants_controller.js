@@ -11,6 +11,7 @@ export default class extends Controller {
         removeLabel: String,
         previewLabel: String,
         currency: String,
+        fractionDigits: { type: Number, default: 2 },
     };
 
     connect() {
@@ -66,7 +67,7 @@ export default class extends Controller {
         );
     }
 
-    // advisory per-head figure; the server distributes the exact cents
+    // advisory per-head figure; the server distributes any remainder exactly
     updatePreview() {
         if (!this.hasPreviewTarget) return;
         const raw = (this.element.querySelector('#amount')?.value || '')
@@ -76,12 +77,24 @@ export default class extends Controller {
         const people = this.rows().filter(
             (r) => r.querySelector('.split-invoice-pick')?.value,
         ).length;
-        if (!Number.isFinite(total) || total <= 0 || people === 0) {
+        if (
+            !Number.isFinite(total) ||
+            total <= 0 ||
+            people === 0 ||
+            (this.fractionDigitsValue === 0 && !Number.isInteger(total))
+        ) {
             this.previewTarget.hidden = true;
             this.previewTarget.textContent = '';
             return;
         }
-        const share = `${this.currencyValue}${(total / people).toFixed(2)}`;
+        const share =
+            this.fractionDigitsValue === 0
+                ? `${this.currencyValue}${Math.floor(total / people)}${
+                      total % people === 0
+                          ? ''
+                          : `-${this.currencyValue}${Math.ceil(total / people)}`
+                  }`
+                : `${this.currencyValue}${(total / people).toFixed(this.fractionDigitsValue)}`;
         this.previewTarget.textContent = this.previewLabelValue.replace(
             '%share%',
             share,

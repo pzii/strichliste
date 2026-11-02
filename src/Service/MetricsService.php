@@ -9,7 +9,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Query;
 use Doctrine\ORM\Query\Expr\Join;
 
-// all amounts are integer cents
+// all amounts are integer currency minor units
 class MetricsService
 {
     public function __construct(private readonly EntityManagerInterface $em)

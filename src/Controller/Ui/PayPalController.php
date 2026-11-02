@@ -26,7 +26,7 @@ class PayPalController extends AbstractController
     // 30m covers payment-method detours without leaving the signed return URL live forever
     private const int RETURN_URL_TTL = 1800;
 
-    // not-yet-consumed return nonces (nonce => cents)
+    // not-yet-consumed return nonces (nonce => internal minor units)
     private const string PENDING_SESSION_KEY = 'paypal_pending';
 
     public function __construct(
@@ -47,6 +47,11 @@ class PayPalController extends AbstractController
             throw new NotFoundHttpException();
         }
 
+        $currencyCode = (string) $this->settings->getOrDefault('i18n.currency.alpha3', 'EUR');
+        if ('XXX' === strtoupper($currencyCode)) {
+            throw new NotFoundHttpException();
+        }
+
         if (!$this->isCsrfTokenValid('paypal_start'.$user->getId(), $request->request->getString('_token'))) {
             $this->addFlash('error', $this->translator->trans('transactions.errors.generic'));
 
@@ -59,8 +64,8 @@ class PayPalController extends AbstractController
             return $this->redirectToRoute('users_detail', ['id' => $user->getId()], Response::HTTP_SEE_OTHER);
         }
 
-        $cents = $this->moneyParser->parseToCents($request->request->getString('amount'));
-        if (null === $cents || $cents <= 0) {
+        $amountMinorUnits = $this->moneyParser->parseToMinorUnits($request->request->getString('amount'));
+        if (null === $amountMinorUnits || $amountMinorUnits <= 0) {
             $this->addFlash('error', $this->translator->trans('split_invoice.errors.invalid_amount'));
 
             return $this->redirectToRoute('users_detail', ['id' => $user->getId()], Response::HTTP_SEE_OTHER);
@@ -69,14 +74,15 @@ class PayPalController extends AbstractController
         // check the boundaries before the member pays PayPal, or the deposit is paid but never credited
         $paymentUpper = (int) $this->settings->getOrDefault('payment.boundary.upper', PHP_INT_MAX);
         $accountUpper = (int) $this->settings->getOrDefault('account.boundary.upper', PHP_INT_MAX);
-        if ($cents > $paymentUpper || $user->getBalance() + $cents > $accountUpper) {
+        if ($amountMinorUnits > $paymentUpper || $user->getBalance() + $amountMinorUnits > $accountUpper) {
             $this->addFlash('error', $this->translator->trans('transactions.errors.boundary'));
 
             return $this->redirectToRoute('users_detail', ['id' => $user->getId()], Response::HTTP_SEE_OTHER);
         }
 
         $feePercent = (float) $this->settings->getOrDefault('paypal.fee', 0);
-        $totalMajor = round(($cents / 100) * (1 + $feePercent / 100), 2);
+        $fractionDigits = $this->moneyParser->getFractionDigits();
+        $totalMajor = round($this->moneyParser->minorToMajorUnits($amountMinorUnits) * (1 + $feePercent / 100), $fractionDigits);
 
         $sandbox = (bool) $this->settings->getOrDefault('paypal.sandbox', true);
         $base = $sandbox
@@ -87,17 +93,17 @@ class PayPalController extends AbstractController
         $nonce = bin2hex(random_bytes(16));
         $session = $request->getSession();
         $pending = $session->get(self::PENDING_SESSION_KEY, []);
-        $pending[$nonce] = $cents;
+        $pending[$nonce] = $amountMinorUnits;
         $session->set(self::PENDING_SESSION_KEY, $pending);
 
         $returnUnsigned = $this->generateUrl(
             'paypal_return_success',
-            ['id' => $user->getId(), 'amount' => $cents, 'nonce' => $nonce],
+            ['id' => $user->getId(), 'amount' => $amountMinorUnits, 'nonce' => $nonce],
             UrlGeneratorInterface::ABSOLUTE_URL,
         );
         $cancelUnsigned = $this->generateUrl(
             'paypal_return_cancel',
-            ['id' => $user->getId(), 'amount' => $cents],
+            ['id' => $user->getId(), 'amount' => $amountMinorUnits],
             UrlGeneratorInterface::ABSOLUTE_URL,
         );
         $expiresAt = time() + self::RETURN_URL_TTL;
@@ -108,8 +114,8 @@ class PayPalController extends AbstractController
             'cmd' => '_xclick',
             'business' => (string) $this->settings->getOrDefault('paypal.recipient', ''),
             'item_name' => 'Strichliste · '.$user->getName(),
-            'currency_code' => (string) $this->settings->getOrDefault('i18n.currency.alpha3', 'EUR'),
-            'amount' => number_format($totalMajor, 2, '.', ''),
+            'currency_code' => $currencyCode,
+            'amount' => number_format($totalMajor, $fractionDigits, '.', ''),
             'rm' => '1',
             'no_shipping' => '1',
             'no_note' => '1',
@@ -153,7 +159,7 @@ class PayPalController extends AbstractController
             $this->addFlash('error', $this->translator->trans('transactions.errors.boundary'));
         } catch (\Throwable $e) {
             // the member has already paid at this point — never fail silently
-            $this->logger->critical('PayPal deposit could not be credited after payment.', ['exception' => $e, 'user' => $user->getId(), 'cents' => $amount]);
+            $this->logger->critical('PayPal deposit could not be credited after payment.', ['exception' => $e, 'user' => $user->getId(), 'minorUnits' => $amount]);
             $this->addFlash('error', $this->translator->trans('paypal.return.error_body'));
         }
 

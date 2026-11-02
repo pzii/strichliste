@@ -5,7 +5,6 @@ namespace App\Form;
 use App\Entity\User;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
-use Symfony\Component\Form\Extension\Core\Type\MoneyType;
 use Symfony\Component\Form\Extension\Core\Type\TextareaType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
@@ -36,11 +35,10 @@ class TransferTransactionType extends AbstractType
                 },
                 'constraints' => [new Assert\NotBlank()],
             ])
-            // Major units; controller multiplies by 100 to get cents.
-            ->add('amount', MoneyType::class, [
+            // The form type applies the configured currency precision.
+            ->add('amount', CurrencyAmountType::class, [
                 'label' => 'transactions.amount_label',
                 'currency' => false,
-                'scale' => 2,
                 'constraints' => [new Assert\NotBlank(), new Assert\Positive(), new Assert\LessThanOrEqual(1000000)],
             ])
             ->add('comment', TextareaType::class, [

@@ -154,7 +154,7 @@ class TransactionService
     }
 
     /**
-     * Deposit (positive) or dispense (negative) cents on a single user account.
+     * Deposit (positive) or dispense (negative) minor units on a single user account.
      */
     public function createForUser(User $user, int $cents, ?string $comment = null): Transaction
     {
@@ -162,7 +162,7 @@ class TransactionService
     }
 
     /**
-     * Transfer `$cents` (negative — debits the sender) from $sender to $recipient.
+     * Transfer a negative minor-unit amount (debit) from $sender to $recipient.
      */
     public function transferBetween(User $sender, User $recipient, int $cents, ?string $comment = null): Transaction
     {
@@ -182,7 +182,7 @@ class TransactionService
      * concurrent splits can't deadlock.
      *
      * @param User[] $participants
-     * @param int[]  $perRowCents  debit per row in cents; sums to the operator's total
+     * @param int[]  $perRowCents  debit per row in minor units; sums to the operator's total
      *
      * @return Transaction[] sender-side transaction per participant
      *

@@ -23,7 +23,7 @@ final class Transaction
         #[OA\Property(description: 'Receiving user when this transaction sent a transfer.')]
         public ?User $recipient,
         public ?string $comment,
-        #[OA\Property(description: 'Signed amount in cents.', example: -150)]
+        #[OA\Property(description: 'Signed amount in the configured currency\'s smallest unit.', example: -150)]
         public int $amount,
         public bool $isDeleted,
         #[OA\Property(description: 'Whether the undo window (payment.undo.*) still allows reverting.')]

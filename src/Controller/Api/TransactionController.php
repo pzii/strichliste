@@ -64,7 +64,7 @@ class TransactionController extends AbstractController
     #[Route('/user/{userId}/transaction', methods: ['POST'])]
     #[OA\Post(
         summary: 'Create a transaction',
-        description: 'Deposit/dispense (`amount`), article purchase (`articleId`, optional `quantity`) or transfer (`amount` + `recipientId`). Amounts are signed cents.',
+        description: 'Deposit/dispense (`amount`), article purchase (`articleId`, optional `quantity`) or transfer (`amount` + `recipientId`). Amounts are signed integers in the configured currency\'s smallest unit.',
         tags: ['transaction'],
         parameters: [
             new OA\Parameter(name: 'userId', in: 'path', required: true, description: 'User id.', schema: new OA\Schema(type: 'integer')),
@@ -88,7 +88,8 @@ class TransactionController extends AbstractController
             throw new UserNotFoundException($userId);
         }
 
-        $transaction = $transactionService->doTransaction($user, $dto->amount, $dto->comment, $dto->quantity, $dto->articleId, $dto->recipientId);
+        $amount = null === $dto->amount ? null : (int) $dto->amount;
+        $transaction = $transactionService->doTransaction($user, $amount, $dto->comment, $dto->quantity, $dto->articleId, $dto->recipientId);
 
         return $this->transactionSerializer->serialize($transaction);
     }

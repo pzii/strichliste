@@ -20,7 +20,7 @@ final class User
         public string $name,
         #[OA\Property(format: 'email', example: 'bob@example.com')]
         public ?string $email,
-        #[OA\Property(description: 'Balance in cents.', example: 1337)]
+        #[OA\Property(description: 'Balance in the configured currency\'s smallest unit.', example: 1337)]
         public int $balance,
         #[OA\Property(description: 'Had a transaction within the staleness window.')]
         public bool $isActive,

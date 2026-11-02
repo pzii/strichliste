@@ -26,6 +26,7 @@ class ArticleController extends AbstractController
         private readonly ArticleRepository $articleRepository,
         private readonly TagRepository $tagRepository,
         private readonly TransactionRepository $transactionRepository,
+        private readonly MoneyParser $moneyParser,
         private readonly EntityManagerInterface $em,
         private readonly TranslatorInterface $translator,
         private readonly \App\Service\ArticleService $articleService,
@@ -96,7 +97,7 @@ class ArticleController extends AbstractController
             $data = $form->getData();
             $article = new Article();
             $article->setName(trim((string) $data['name']));
-            $article->setAmount(MoneyParser::majorToCents((float) $data['amount']));
+            $article->setAmount($this->moneyParser->majorToMinorUnits((float) $data['amount']));
             $this->em->persist($article);
             $this->em->flush();
             $this->addFlash('success', $this->translator->trans('articles.create.success'));
@@ -113,7 +114,7 @@ class ArticleController extends AbstractController
     {
         $form = $this->createForm(EditArticleType::class, [
             'name' => $article->getName(),
-            'amount' => $article->getAmount() / 100,
+            'amount' => $this->moneyParser->minorToMajorUnits($article->getAmount()),
             'active' => $article->isActive(),
         ]);
         $form->handleRequest($request);
@@ -123,7 +124,7 @@ class ArticleController extends AbstractController
             $resultArticle = $this->articleService->update(
                 $article,
                 trim((string) $data['name']),
-                MoneyParser::majorToCents((float) $data['amount']),
+                $this->moneyParser->majorToMinorUnits((float) $data['amount']),
                 (bool) $data['active'],
             );
 

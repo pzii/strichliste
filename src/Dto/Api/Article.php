@@ -23,7 +23,7 @@ final class Article
         public string $name,
         public array $barcodes,
         public array $tags,
-        #[OA\Property(description: 'Price in cents.', example: 150)]
+        #[OA\Property(description: 'Price in the configured currency\'s smallest unit.', example: 150)]
         public int $amount,
         public bool $isActive,
         #[OA\Property(example: 42)]

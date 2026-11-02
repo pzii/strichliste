@@ -2,13 +2,17 @@
 
 namespace App\Service;
 
-// accepts both comma and dot decimals ("5,99" and "5.99" are 599 cents)
+// accepts comma and dot decimals using the configured currency precision
 class MoneyParser
 {
+    public function __construct(private readonly SettingsService $settings)
+    {
+    }
+
     /**
-     * @return int|null cents, or null if invalid / not-a-number
+     * @return int|null amount in the configured minor unit, or null if invalid
      */
-    public function parseToCents(mixed $input): ?int
+    public function parseToMinorUnits(mixed $input): ?int
     {
         if (null === $input || '' === $input) {
             return null;
@@ -18,16 +22,23 @@ class MoneyParser
             $input = (string) $input;
         }
         $clean = trim($input);
+        $symbol = (string) $this->settings->getOrDefault('i18n.currency.symbol', '');
+        if ('' !== $symbol) {
+            $clean = str_replace($symbol, '', $clean);
+        }
         $clean = preg_replace('/[\s\x{00a0}\x{202f}€$£¥]/u', '', $clean);
         if ('' === $clean || null === $clean) {
             return null;
         }
+        $fractionDigits = $this->getFractionDigits();
+        $fractionPart = null;
         $dotCount = substr_count($clean, '.');
         $commaCount = substr_count($clean, ',');
 
         if ($dotCount > 0 && $commaCount > 0) {
             // rightmost separator is the decimal mark, the other is grouping ("1.234,56")
             $decimalAt = max(strrpos($clean, '.'), strrpos($clean, ','));
+            $fractionPart = substr($clean, $decimalAt + 1);
             $clean = preg_replace('/[.,]/', '', substr($clean, 0, $decimalAt))
                    .'.'.substr($clean, $decimalAt + 1);
         } else {
@@ -42,22 +53,54 @@ class MoneyParser
                         // "1.000" is ambiguous (1000 vs 1.0) — refuse rather than book an amount off by x1000
                         return null;
                     }
-                    // 1, 2 or 4+ trailing digits: the separator is the decimal mark
+                    $fractionPart = substr($clean, strrpos($clean, $sep) + 1);
                     $clean = str_replace($sep, '.', $clean);
                 }
             }
         }
 
-        if (!is_numeric($clean)) {
+        if (!is_numeric($clean) || (null !== $fractionPart && '' === $fractionPart)) {
             return null;
         }
 
-        return self::majorToCents((float) $clean);
+        if (0 === $fractionDigits && null !== $fractionPart && '' !== trim($fractionPart, '0')) {
+            return null;
+        }
+
+        if (0 === $fractionDigits && false !== strpbrk($clean, 'eE')) {
+            return null;
+        }
+
+        return $this->majorToMinorUnits((float) $clean);
     }
 
-    // round() dodges 1.50 * 100 = 149 float artifacts
-    public static function majorToCents(float $major): int
+    public function getFractionDigits(): int
     {
-        return (int) round($major * 100);
+        $fractionDigits = $this->settings->getOrDefault('i18n.currency.fractionDigits', 2);
+        if (!is_int($fractionDigits) || $fractionDigits < 0 || $fractionDigits > 6) {
+            throw new \LogicException('i18n.currency.fractionDigits must be an integer between 0 and 6.');
+        }
+
+        return $fractionDigits;
+    }
+
+    public function getMinorUnitsPerMajorUnit(): int
+    {
+        return 10 ** $this->getFractionDigits();
+    }
+
+    public function majorToMinorUnits(float $amount): int
+    {
+        $scaled = $amount * $this->getMinorUnitsPerMajorUnit();
+        if (0 === $this->getFractionDigits() && floor($scaled) !== $scaled) {
+            throw new \InvalidArgumentException('Fractional amounts are not supported by this currency.');
+        }
+
+        return (int) round($scaled);
+    }
+
+    public function minorToMajorUnits(int $amount): float
+    {
+        return $amount / $this->getMinorUnitsPerMajorUnit();
     }
 }

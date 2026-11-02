@@ -31,7 +31,7 @@ parameters:
                 upper: 20000
                 lower: -20000
 
-        # Be aware: All amounts are in cents!
+        # All configured amounts use the currency's smallest unit.
         payment:
             undo:
                 enabled: true

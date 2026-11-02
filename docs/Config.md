@@ -40,11 +40,16 @@ is a valid paypal account.
 
 ####  currency:
 
-| field  | datatype | default | description                |
-|--------|----------|---------|----------------------------|
-| name   | string   | Euro    | Currency                   |
-| symbol | string   | €       | Currency Symbol            |
-| alpha3 | string   | EUR     | Alpha3 format for currency |
+| field          | datatype | default | description                          |
+|----------------|----------|---------|--------------------------------------|
+| name           | string   | Euro    | Currency                             |
+| symbol         | string   | €       | Currency symbol                      |
+| alpha3         | string   | EUR     | ISO 4217 currency code               |
+| fractionDigits | int      | 2       | Number of fractional digits (0 to 6) |
+
+`fractionDigits` determines how persisted integer amounts are interpreted. Set it before recording monetary data and do not change it later: balances, transactions, and article prices have no independent precision metadata. Use `fractionDigits: 0` with a fresh database, or convert all persisted monetary values and related amount settings before changing precision.
+
+PayPal requires a supported ISO currency code.
 
 ## account
 
@@ -90,7 +95,7 @@ A new strichliste2 feature is transferring money to other accounts with an optio
 |---------|----------|---------|-----------------------------------------|
 | enabled | bool     | true    | Enable/Disable quick money pay in       |
 | custom  | book     | true    | Enable/Disable deposit custom amounts   |
-| steps   | money[]  |         | Available payment steps in unit "money" |
+| steps   | money[]  |         | Available payment steps in the configured currency's smallest unit |
 
 #### dispense
 
@@ -98,7 +103,7 @@ A new strichliste2 feature is transferring money to other accounts with an optio
 |---------|----------|---------|-----------------------------------------|
 | enabled | bool     | true    | Enable/Disable quick expend             |
 | custom  | book     | true    | Enable/Disable dispense custom amounts  |
-| steps   | money[]  |         | Available payment steps in unit "money" |
+| steps   | money[]  |         | Available payment steps in the configured currency's smallest unit |
 
 ## Datatypes
 
@@ -108,4 +113,4 @@ For format see: https://www.php.net/manual/en/datetime.formats.php#datetime.form
 
 #### money
 
-Money is always formatted in cents. So if you want to limit your transactions to 10 €, you have to use 1000 as value.
+Configured amounts and API amount fields use integer minor units. `i18n.currency.fractionDigits` defines the conversion: with the default value of `2`, €10 is 1000 minor units; with `0`, 10 means 10 units. Account and payment boundaries and quick-payment steps use the same integer unit.

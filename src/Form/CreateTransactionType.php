@@ -4,7 +4,6 @@ namespace App\Form;
 
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\HiddenType;
-use Symfony\Component\Form\Extension\Core\Type\MoneyType;
 use Symfony\Component\Form\Extension\Core\Type\TextareaType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
@@ -21,11 +20,10 @@ class CreateTransactionType extends AbstractType
             ->add('direction', HiddenType::class, [
                 'constraints' => [new Assert\Choice(choices: ['deposit', 'dispense'])],
             ])
-            // MoneyType binds major units (€); the controller converts to cents
-            ->add('amount', MoneyType::class, [
+            // The form type applies the configured currency precision.
+            ->add('amount', CurrencyAmountType::class, [
                 'label' => 'transactions.amount_label',
                 'currency' => false,
-                'scale' => 2,
                 'constraints' => [new Assert\NotBlank(), new Assert\NotEqualTo(value: 0), new Assert\Range(min: -1000000, max: 1000000)],
             ])
             ->add('comment', TextareaType::class, [

@@ -25,6 +25,7 @@
             data-split-participants-remove-label-value="{{ 'split_invoice.participants.remove'|trans }}"
             data-split-participants-preview-label-value="{{ 'split_invoice.preview'|trans }}"
             data-split-participants-currency-value="{{ setting('i18n.currency.symbol', '€') }}"
+            data-split-participants-fraction-digits-value="{{ setting('i18n.currency.fractionDigits', 2) }}"
         >
             <input type="hidden" name="_token" value="{{ csrf_token('split_invoice') }}" />
             {# catches implicit Enter submission — must precede the add_row submit.
@@ -35,7 +36,7 @@
                 <input
                     class="split-invoice-input"
                     type="text"
-                    inputmode="decimal"
+                    inputmode="{{ 0 == setting('i18n.currency.fractionDigits', 2) ? 'numeric' : 'decimal' }}"
                     id="amount"
                     name="amount"
                     placeholder="{{ 'split_invoice.fields.amount_placeholder'|trans }}"

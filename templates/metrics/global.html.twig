@@ -26,6 +26,7 @@
             <canvas role="img" aria-label="{{ 'metrics.global.chart.balance_alt'|trans }}"
                     data-controller="chart" data-chart-data-id-value="metrics-days-json"
                     data-chart-currency-value="{{ setting('i18n.currency.symbol', '€') }}"
+                    data-chart-fraction-digits-value="{{ setting('i18n.currency.fractionDigits', 2) }}"
                     data-chart-labels-value="{{ {
                         charged: 'metrics.global.chart.series.charged'|trans,
                         spent: 'metrics.global.chart.series.spent'|trans,
